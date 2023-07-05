@@ -1,0 +1,96 @@
+@page "/"
+@inject IJSRuntime JSRuntime
+@using Password123.Core
+@using Microsoft.Data.SqlClient
+
+<PageTitle>Password123</PageTitle>
+@switch (_mode) {
+    case ViewMode.Login:
+        <strong>Password: </strong>
+        <InputText type="password" @bind-Value=@_key/>
+        <br/>
+        <button @onclick="Login">Login</button>
+        break;
+    case ViewMode.List:
+        @if (_entries == null) {
+            <p>Loading...</p>
+        }
+        else {
+            <button @onclick="@New">New</button>
+            @foreach (var item in _entries) {
+                <h2>@Encryption.DecryptAES(_key, item.Name)</h2>
+                <div>
+                    <h6>
+                        <strong>User: </strong><span>@Encryption.DecryptAES(_key, item.Username)</span>
+                    </h6>
+                    <p>@Encryption.DecryptAES(_key, item.Notes)</p>
+                    <button @onclick="() => CopyText(Encryption.DecryptAES(_key, item.Password))">Copy Password</button>
+                    <button @onclick="() => Edit(item)">Edit</button>
+                    <button @onclick="() => Delete(item)">Delete</button>
+                </div>
+            }
+        }
+        break;
+    case ViewMode.New:
+        <Editor OnSave="() => _mode = ViewMode.List" OnCancel="() => _mode = ViewMode.List" Entry=@_currentEntry Key=@_key Db=@_db/>
+        break;
+    case ViewMode.Edit:
+        <Editor OnSave="() => _mode = ViewMode.List" OnCancel="() => _mode = ViewMode.List" Entry=@_currentEntry Key=@_key Db=@_db/>
+        break;
+    default:
+        <p>Error</p>
+        break;
+}
+@code{
+    List<Entry>? _entries = new();
+    string _key = "";
+    readonly NPoco.Database _db = new(new SqlConnection(@"Server=CCH\CODINGCOOL;Database=Password123;Integrated Security=true;TrustServerCertificate=True;"));
+    ViewMode _mode = ViewMode.Login;
+    Entry? _currentEntry;
+
+    protected override void OnInitialized()
+    {
+        LoadEntries();
+    }
+
+    private void LoadEntries()
+    {
+        _db.Connection.Open();
+        _entries = _db.Query<Entry>().ToList();
+        _db.Connection.Close();
+    }
+
+    private void Delete(Entry item)
+    {
+        _db.Connection.Open();
+        _db.Delete<Entry>(item);
+        _entries = _db.Query<Entry>().ToList();
+        _db.Connection.Close();
+    }
+
+    private void CopyText(string text)
+    {
+        JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+    }
+
+    public enum ViewMode {
+        List,New,Edit,Login
+    }
+
+    private void Login()
+    {
+        _mode = ViewMode.List;
+    }
+
+    private void Edit(Entry item)
+    {
+        _currentEntry = item;
+        _mode = ViewMode.Edit;
+    }
+    
+    private void New()
+    {
+        _currentEntry = new Entry();
+        _mode = ViewMode.New;
+    }
+}

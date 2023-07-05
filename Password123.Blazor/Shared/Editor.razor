@@ -1,0 +1,78 @@
+﻿@using NPoco
+@using NPoco.Expressions
+@using Password123.Core
+<div>Name: </div>
+<InputText @bind-Value="@Name"/>
+<br/>
+<div>Username: </div>
+<InputText @bind-Value="@Username"/>
+<br/>
+<div>Password: </div>
+<InputText @bind-Value="@Password"/>
+<br/>
+<div>Notes: </div>
+<InputTextArea @bind-Value="@Notes"/>
+<br/>
+<button @onclick="@Save">Save</button>
+<button @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
+@code {
+
+    [Parameter]
+    public Database Db { get; set;} = null!;
+
+    [Parameter]
+    public string Key { get; set; } = "";
+
+    [Parameter]
+    public Entry? Entry { get; set; }
+
+    private string? Name
+    {
+        get => Encryption.DecryptAES(Key, Entry?.Name);
+        set
+        {
+            if (Entry != null) Entry.Name = Encryption.EncryptAES(Key, value);
+        }
+    }
+
+    private string? Username
+    {
+        get => Encryption.DecryptAES(Key, Entry?.Username);
+        set
+        {
+            if (Entry != null) Entry.Username = Encryption.EncryptAES(Key, value);
+        }
+    }
+    
+    private string? Password
+    {
+        get => Encryption.DecryptAES(Key, Entry?.Password);
+        set
+        {
+            if (Entry != null) Entry.Password = Encryption.EncryptAES(Key, value);
+        }
+    }
+
+    private string? Notes
+    {
+        get => Encryption.DecryptAES(Key, Entry?.Notes);
+        set
+        {
+            if (Entry != null) Entry.Notes = Encryption.EncryptAES(Key, value);
+        }
+    }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+    
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+    
+    private void Save()
+    {
+        Db.Connection.Open();
+        Db.Save(Entry);
+        OnSave.InvokeAsync();
+        Db.Connection.Close();
+    }
+}
